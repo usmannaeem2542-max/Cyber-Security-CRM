@@ -1,0 +1,372 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  passwordHash      String
+  role              String   @default("SALES_REP") // ADMIN | SALES_MANAGER | SALES_REP | MARKETING | READ_ONLY
+  teamAccessGranted Boolean  @default(false)
+  department        String   @default("Sales")
+  phone             String?
+  twoFactorEnabled  Boolean  @default(false)
+  twoFactorSecret   String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  leads            Lead[]
+  accounts         Account[]
+  contacts         Contact[]
+  deals            Deal[]
+  quotes           Quote[]
+  contracts        Contract[]
+  campaigns        Campaign[]
+  activities       Activity[]
+  tickets          Ticket[]
+  auditLogs        AuditLog[]
+  savedFilters     SavedFilter[]
+  emailTemplates   EmailTemplate[]
+  audienceSegments AudienceSegment[]
+}
+
+model Lead {
+  id                 String    @id @default(cuid())
+  firstName          String
+  lastName           String
+  email              String
+  phone              String?
+  companyName        String
+  jobTitle           String?
+  industry           String
+  companySize        String    @default("MID_MARKET") // SMB | MID_MARKET | ENTERPRISE | GOVERNMENT
+  country            String    @default("UAE")
+  source             String    @default("INBOUND_WEB") // WEBINAR | LINKEDIN | EMAIL_CAMPAIGN | EVENT | INBOUND_WEB | PARTNER | COLD_OUTREACH
+  serviceInterest    String
+  estimatedBudget    Float     @default(0)
+  currency           String    @default("AED")
+  engagementScore    Int       @default(50)
+  score              Int       @default(50)
+  status             String    @default("NEW") // NEW | CONTACTED | QUALIFIED | UNQUALIFIED | CONVERTED
+  tags               String    @default("[]")
+  notes              String?
+  convertedAccountId String?
+  ownerId            String
+  owner              User      @relation(fields: [ownerId], references: [id])
+  campaignId         String?
+  campaign           Campaign? @relation(fields: [campaignId], references: [id])
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  activities Activity[]
+}
+
+model Account {
+  id                 String   @id @default(cuid())
+  name               String
+  industry           String
+  size               String   @default("ENTERPRISE") // SMB | MID_MARKET | ENTERPRISE | GOVERNMENT
+  country            String   @default("UAE")
+  website            String?
+  complianceReqs     String   @default("[]") // JSON array: ISO 27001, SOC 2, PCI DSS, NESA/UAE IA, GDPR
+  securityStack      String   @default("")
+  vulnerabilityNotes String   @default("") // Field-level protected sensitive data
+  healthStatus       String   @default("HEALTHY") // HEALTHY | AT_RISK | CRITICAL
+  annualRevenue      Float?
+  tags               String   @default("[]")
+  notes              String?
+  attachments        String   @default("[]")
+  ownerId            String
+  owner              User     @relation(fields: [ownerId], references: [id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  contacts    Contact[]
+  deals       Deal[]
+  quotes      Quote[]
+  contracts   Contract[]
+  engagements Engagement[]
+  activities  Activity[]
+  tickets     Ticket[]
+}
+
+model Contact {
+  id              String   @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String
+  phone           String?
+  role            String   @default("IT_MANAGER") // CISO | IT_MANAGER | CFO | PROCUREMENT | CTO | OTHER
+  jobTitle        String?
+  isDecisionMaker Boolean  @default(false)
+  linkedinUrl     String?
+  notes           String?
+  accountId       String
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  ownerId         String
+  owner           User     @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  activities Activity[]
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  title             String
+  stage             String    @default("PROSPECTING") // PROSPECTING | DISCOVERY | SCOPING | PROPOSAL | NEGOTIATION | CLOSED_WON | CLOSED_LOST
+  serviceType       String
+  value             Float
+  currency          String    @default("AED")
+  probability       Int       @default(20)
+  expectedCloseDate DateTime
+  competitors       String?
+  lostReason        String?
+  internalMargin    Float?    // Field-level protected sensitive margin %
+  tags              String    @default("[]")
+  notes             String?
+  stakeholderIds    String    @default("[]")
+  stageChangedAt    DateTime  @default(now())
+  accountId         String
+  account           Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  ownerId           String
+  owner             User      @relation(fields: [ownerId], references: [id])
+  campaignId        String?
+  campaign          Campaign? @relation(fields: [campaignId], references: [id])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  quotes      Quote[]
+  contracts   Contract[]
+  engagements Engagement[]
+  activities  Activity[]
+}
+
+model ServiceCatalogItem {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  category     String // OFFENSIVE_SECURITY | MANAGED_SOC | COMPLIANCE | AWARENESS | MANAGED_IT
+  description  String
+  unitType     String // PER_ASSET | PER_IP | PER_USER | PER_DAY | FIXED_RETAINER
+  unitPriceAED Float
+  unitPriceUSD Float
+  deliverables String   @default("[]")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  quoteItems QuoteLineItem[]
+}
+
+model Quote {
+  id              String    @id @default(cuid())
+  quoteNumber     String    @unique
+  title           String
+  status          String    @default("DRAFT") // DRAFT | SENT | ACCEPTED | REJECTED
+  currency        String    @default("AED")
+  discountPercent Float     @default(0)
+  taxPercent      Float     @default(5)
+  subtotal        Float     @default(0)
+  total           Float     @default(0)
+  validUntil      DateTime
+  terms           String?
+  sensitiveTerms  String?   // Field-level protected commercial terms
+  sentAt          DateTime?
+  dealId          String
+  deal            Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  accountId       String
+  account         Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  ownerId         String
+  owner           User      @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  items QuoteLineItem[]
+}
+
+model QuoteLineItem {
+  id          String              @id @default(cuid())
+  quoteId     String
+  quote       Quote               @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  serviceId   String?
+  service     ServiceCatalogItem? @relation(fields: [serviceId], references: [id])
+  description String
+  unitType    String
+  quantity    Float
+  unitPrice   Float
+  total       Float
+}
+
+model Contract {
+  id                String   @id @default(cuid())
+  contractNumber    String   @unique
+  title             String
+  accountId         String
+  account           Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  dealId            String?
+  deal              Deal?    @relation(fields: [dealId], references: [id])
+  ownerId           String
+  owner             User     @relation(fields: [ownerId], references: [id])
+  startDate         DateTime
+  endDate           DateTime
+  autoRenew         Boolean  @default(true)
+  renewalNoticeDays Int      @default(60)
+  billingCycle      String   @default("ANNUAL") // MONTHLY | QUARTERLY | ANNUAL | ONE_TIME
+  mrr               Float    @default(0)
+  arr               Float    @default(0)
+  totalValue        Float
+  currency          String   @default("AED")
+  status            String   @default("ACTIVE") // ACTIVE | EXPIRING_SOON | RENEWED | EXPIRED
+  sensitiveTerms    String?  // Field-level protected terms
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Engagement {
+  id                  String    @id @default(cuid())
+  title               String
+  dealId              String?
+  deal                Deal?     @relation(fields: [dealId], references: [id])
+  accountId           String
+  account             Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  scope               String
+  assignedConsultants String    @default("[]")
+  startDate           DateTime
+  endDate             DateTime
+  status              String    @default("KICKOFF") // KICKOFF | IN_PROGRESS | REPORTING | DELIVERED | COMPLETED
+  reportDelivered     Boolean   @default(false)
+  reportDeliveredAt   DateTime?
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Campaign {
+  id             String    @id @default(cuid())
+  name           String
+  type           String // WEBINAR | EMAIL | LINKEDIN | EVENT | CONTENT
+  status         String    @default("ACTIVE") // PLANNED | ACTIVE | PAUSED | COMPLETED
+  budget         Float
+  currency       String    @default("AED")
+  startDate      DateTime
+  endDate        DateTime?
+  targetIndustry String?
+  description    String?
+  ownerId        String
+  owner          User      @relation(fields: [ownerId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  leads Lead[]
+  deals Deal[]
+}
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  body        String
+  category    String   @default("OUTREACH")
+  mergeFields String   @default("[]")
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AudienceSegment {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  criteriaIndustry String?
+  criteriaService  String?
+  criteriaStage    String?
+  createdById      String
+  createdBy        User     @relation(fields: [createdById], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model ContentAsset {
+  id              String   @id @default(cuid())
+  title           String
+  type            String // WHITEPAPER | CASE_STUDY | DATASHEET | PLAYBOOK
+  serviceCategory String
+  summary         String
+  url             String
+  downloads       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Activity {
+  id            String    @id @default(cuid())
+  type          String // CALL | MEETING | EMAIL | NOTE | TASK
+  subject       String
+  description   String?
+  dueDate       DateTime?
+  completed     Boolean   @default(false)
+  completedAt   DateTime?
+  priority      String    @default("MEDIUM") // LOW | MEDIUM | HIGH
+  autoGenerated Boolean   @default(false)
+  leadId        String?
+  lead          Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  accountId     String?
+  account       Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contactId     String?
+  contact       Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  dealId        String?
+  deal          Deal?     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  ownerId       String
+  owner         User      @relation(fields: [ownerId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Ticket {
+  id           String   @id @default(cuid())
+  ticketNumber String   @unique
+  subject      String
+  description  String
+  category     String // SOC_ALERT | PEN_TEST_RETEST | LICENSING | COMPLIANCE_ADVISORY | GENERAL
+  priority     String   @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  status       String   @default("OPEN") // OPEN | IN_PROGRESS | RESOLVED | CLOSED
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  userEmail  String?
+  userRole   String?
+  action     String // LOGIN | LOGIN_FAILED | VIEW_SENSITIVE | CREATE | UPDATE | DELETE | EXPORT | ROLE_CHANGE | 2FA_UPDATE
+  entityType String
+  entityId   String?
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+}
+
+model SavedFilter {
+  id         String   @id @default(cuid())
+  name       String
+  module     String
+  filterJson String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}

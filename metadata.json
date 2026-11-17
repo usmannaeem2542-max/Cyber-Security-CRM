@@ -1,0 +1,6 @@
+{
+  "name": "SentinelShield Cyber CRM",
+  "description": "Full-stack B2B sales, delivery, and marketing CRM for cybersecurity and managed IT services.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
